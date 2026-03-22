@@ -1,4 +1,3 @@
-
 import streamlit as st
 import requests
 import base64
@@ -146,15 +145,17 @@ def obtener_lotes(url, max_lotes):
 
 def foto_a_base64(url_foto):
     try:
-        headers = {
-            "Referer": "https://www.remotes.com.uy/",
-            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
-        }
-        r = requests.get(url_foto, timeout=10, allow_redirects=True, headers=headers)
+        # Scrapfly como proxy — resuelve bloqueos de datacenter
+        r = requests.get(
+            "https://api.scrapfly.io/scrape",
+            params={"key": SCRAPFLY_KEY, "url": url_foto, "render_js": "false"},
+            timeout=15
+        )
         r.raise_for_status()
-        if len(r.content) < 500:
+        b64 = r.json().get("result", {}).get("content", "")
+        if not b64 or len(b64) < 500:
             return None
-        return base64.b64encode(r.content).decode("utf-8")
+        return b64
     except:
         return None
 
