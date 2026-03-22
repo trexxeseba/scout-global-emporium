@@ -1,25 +1,62 @@
 
-Ya completó. Los 60s y 120s son confirmación.
+import os
 
+def _get_secret(key: str) -> str:
+    """Lee desde st.secrets si existe, si no desde os.environ."""
+    try:
+        import streamlit as st
+        return st.secrets[key]
+    except Exception:
+        return os.environ.get(key, "")
 
-Checked API status and confirmed sync service operational
-Checked API status and confirmed sync service operational
+# ── API KEYS ──────────────────────────────────────────────────────────────────
+OPENAI_API_KEY = _get_secret("OPENAI_API_KEY")
+SCRAPFLY_KEY   = _get_secret("SCRAPFLY_KEY")
+SERPAPI_KEY    = _get_secret("SERPAPI_KEY")
 
-Resultados
-Tabla de monitoreo:
+# ── PARÁMETROS DE NEGOCIO ─────────────────────────────────────────────────────
+COMISION_MLU        = 0.16
+GASTO_LOGISTICA     = 350
+GANANCIA_MINIMA     = 500
+COMISION_REMATE_DEF = 0.18
 
-Campo	T+0	T+30s	T+60s	T+120s
-updated_at	02:00:24Z	02:44:42Z ✅	02:44:42Z	02:44:42Z
-last_incremental	02:00:24Z	02:44:42Z ✅	02:44:42Z	02:44:42Z
-incremental_updated	100	100	100	100
-incremental_new	0	0	0	0
-cron_last_start_at	02:44:36Z	02:44:36Z	02:44:36Z	02:44:36Z
-cron_last_end_at	null	02:44:47Z ✅	02:44:47Z	02:44:47Z
-cron_last_duration_ms	null	11.099ms ✅	11.099ms	11.099ms
-status	ok	ok	ok	ok
-El incremental manual corrió bien. Completó en 11 segundos, actualizó updated_at y last_incremental, reportó 100 items actualizados. Los campos de observabilidad funcionan correctamente.
+# ── FÓRMULA BMÁX ─────────────────────────────────────────────────────────────
+def calcular_bmax(pvp: float, comision_remate: float = COMISION_REMATE_DEF) -> int:
+    """Bmáx = (PVP * (1 - COMISION_MLU) - GASTO_LOGISTICA - GANANCIA_MINIMA) / (1 + comision_remate)"""
+    numerador = (pvp * (1 - COMISION_MLU)) - GASTO_LOGISTICA - GANANCIA_MINIMA
+    if numerador <= 0:
+        return 0
+    return round(numerador / (1 + comision_remate))
 
-El worker quedó sano de verdad. Bindings restaurados, KV operativo, R2 legible y escribible, MELI API respondiendo, observabilidad activa.
+def calcular_margen(pvp: float, costo_real: float) -> int:
+    venta_neta = pvp * (1 - COMISION_MLU) - GASTO_LOGISTICA
+    if costo_real <= 0:
+        return 0
+    return round(((venta_neta - costo_real) / costo_real) * 100)
 
-Podemos volver al tema del full sync. El worker está en mejor estado que antes del accidente — ahora tiene los 3 bindings originales más la observabilidad de cron. El próximo paso es el rediseño del full sync que dejamos pendiente, cuando lo autorices.
+def tomar_decision(bmax: int, pvp: int, qty_mlu: int, confianza: str) -> str:
+    if bmax <= 0:
+        return "PASO"
+    if confianza == "baja":
+        return "SOLO SI MUY BARATO"
+    if qty_mlu == 0 and pvp < 4000:
+        return "SOLO SI MUY BARATO"
+    if bmax > 500:
+        return "COMPRA"
+    return "SOLO SI MUY BARATO"
 
+# ── NICHOS ────────────────────────────────────────────────────────────────────
+PALABRAS_NICHO = [
+    "plat", "antigued", "bronce", "porcelana", "numism", "filateli",
+    "moneda", "colecci", "arte", "vintage", "sucesion", "herencia",
+    "reloj", "cristal", "ceramica", "medalla", "gaucho", "crioll"
+]
+
+EMOJIS_NICHO = {
+    "plateria": "🥈", "bronce": "🟤", "porcelana": "🏺",
+    "documentos": "📜", "numismatica": "🪙"
+}
+
+# ── VALIDACIÓN IMAGEN ─────────────────────────────────────────────────────────
+MIN_B64_LEN    = 2000
+MIN_IMAGE_SIZE = (40, 40)
