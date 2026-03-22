@@ -1,3 +1,4 @@
+
 import streamlit as st
 import requests
 import base64
@@ -145,8 +146,14 @@ def obtener_lotes(url, max_lotes):
 
 def foto_a_base64(url_foto):
     try:
-        r = requests.get(url_foto, timeout=10)
+        headers = {
+            "Referer": "https://www.remotes.com.uy/",
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+        }
+        r = requests.get(url_foto, timeout=10, allow_redirects=True, headers=headers)
         r.raise_for_status()
+        if len(r.content) < 500:
+            return None
         return base64.b64encode(r.content).decode("utf-8")
     except:
         return None
